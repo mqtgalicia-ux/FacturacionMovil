@@ -325,102 +325,102 @@ const filteredClients = clients.filter(client =>
     ) : facturas.length === 0 ? (
       <div>No hay facturas</div>
     ) : (
-      <table className="w-full text-sm border border-gray-200">
-        <thead>
-          <tr className="bg-gray-100">
-            <th className="p-2 text-left">Número</th>
-            <th className="p-2 text-left">Fecha</th>
-            <th className="p-2 text-left">Estado</th>
-            <th className="p-2 text-right">Total</th>
-            <th className="p-2 text-right"></th>
-          </tr>
-        </thead>
-        <tbody>
-          {facturas.map((f) => (
-            <tr key={f.id} className="border-t border-gray-200">
-              <td className="p-2">{f.numero}</td>
-              <td className="p-2">{new Date(f.fecha).toLocaleDateString()}</td>
-              <td className="p-2">
-                  {f.estado === 'Pagada' && (
-                    <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-700 rounded-md">
-                    🟢 Pagada
-                    </span>
-                  )}
+     <div className="space-y-2">
+  {facturas.map((f) => (
+    <div
+      key={f.id}
+      className="bg-white border border-gray-200 rounded-lg p-3 flex items-center justify-between"
+    >
+      <div className="flex-1">
+        <div className="flex items-center gap-2">
+          <span className="font-semibold">#{f.numero}</span>
 
-                  {f.estado === 'Enviada' && (
-                    <span className="px-2 py-1 text-xs font-medium bg-red-100 text-red-700 rounded-md">
-                    🔴 Pendiente
-                    </span>
-                  )}
+          {f.estado === "Pagada" && (
+            <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
+              🟢 Pagada
+            </span>
+          )}
 
-                  {f.estado === 'Borrador' && (
-                      <span className="px-2 py-1 text-xs font-medium bg-orange-100 text-orange-700 rounded-md">
-                    🟠 Borrador
-                    </span>
-                  )}
-                </td>
-              <td className="p-2 text-right">{f.total.toFixed(2)}€</td>
+          {f.estado === "Enviada" && (
+            <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">
+              🔴 Pendiente
+            </span>
+          )}
 
-<td className="p-2 text-right relative">
+          {f.estado === "Borrador" && (
+            <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded">
+              🟠 Borrador
+            </span>
+          )}
+        </div>
 
-<button
-  onClick={() =>
-    setMenuFactura(menuFactura === f.id ? null : f.id)
-  }
-  className="p-1 rounded hover:bg-gray-100"
->
-  <MoreVertical className="w-4 h-4 text-gray-600" />
-</button>
+        <div className="text-xs text-gray-500 mt-1">
+          {new Date(f.fecha).toLocaleDateString()}
+        </div>
 
-{menuFactura === f.id && (
-  <div className="absolute right-0 mt-1 w-44 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+        <div className="font-bold text-blue-600 mt-1">
+          {f.total.toFixed(2)}€
+        </div>
+      </div>
 
-   <button
-  onClick={async () => {
-    if (!empresa || !clienteSeleccionado) return;
+      <div className="relative">
+        <button
+          onClick={() =>
+            setMenuFactura(menuFactura === f.id ? null : f.id)
+          }
+          className="p-2 rounded hover:bg-gray-100"
+        >
+          <MoreVertical className="w-5 h-5 text-gray-600" />
+        </button>
 
-    try {
-      const { data: items, error } = await supabase
-        .from("items_factura")
-        .select(`*, impuestos (*)`)
-        .eq("factura_id", f.id);
+        {menuFactura === f.id && (
+          <div className="absolute right-0 mt-1 w-44 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
 
-      if (error) throw error;
+            <button
+              onClick={async () => {
+                if (!empresa || !clienteSeleccionado) return;
 
-      const pdfBlob = await generateInvoicePDF(
-        empresa,
-        f,
-        clienteSeleccionado,
-        items || []
-      );
+                try {
+                  const { data: items, error } = await supabase
+                    .from("items_factura")
+                    .select(`*, impuestos (*)`)
+                    .eq("factura_id", f.id);
 
-      const url = URL.createObjectURL(pdfBlob);
-      window.open(url);
-    } catch (err) {
-      console.error("Error generando PDF:", err);
-    }
-  }}
-  className="flex items-center gap-2 w-full px-4 py-2 text-sm font-medium text-blue-700 bg-blue-100 rounded-lg hover:bg-blue-200 transition-all shadow-sm"
->
-  <FileText className="w-5 h-5"/>
-  Ver PDF
-</button>
+                  if (error) throw error;
 
-<button
-  onClick={() => marcarPagada(f.id)}
-  className="flex items-center gap-2 w-full px-4 py-2 text-sm font-medium text-green-700 bg-green-100 rounded-lg hover:bg-green-200 transition-all shadow-sm"
->
-  <CheckCircle className="w-5 h-5"/>
-  Marcar como pagada
-</button>
-  </div>
-)}
+                  const pdfBlob = await generateInvoicePDF(
+                    empresa,
+                    f,
+                    clienteSeleccionado,
+                    items || []
+                  );
 
-</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                  const url = URL.createObjectURL(pdfBlob);
+                  window.open(url);
+                } catch (err) {
+                  console.error("Error generando PDF:", err);
+                }
+              }}
+              className="flex items-center gap-2 w-full px-4 py-2 text-sm font-medium text-blue-700 bg-blue-100 rounded-lg hover:bg-blue-200"
+            >
+              <FileText className="w-4 h-4" />
+              Ver PDF
+            </button>
+
+            <button
+              onClick={() => marcarPagada(f.id)}
+              className="flex items-center gap-2 w-full px-4 py-2 text-sm font-medium text-green-700 bg-green-100 rounded-lg hover:bg-green-200"
+            >
+              <CheckCircle className="w-4 h-4" />
+              Marcar pagada
+            </button>
+
+          </div>
+        )}
+      </div>
+    </div>
+  ))}
+</div>
     )}
   </div>
 )}
