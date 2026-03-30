@@ -170,7 +170,7 @@ const filteredClients = clients.filter(client =>
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
         <div className="flex items-center gap-3">
           <div className="p-3 bg-blue-100 rounded-lg">
             <Users className="w-6 h-6 text-blue-600" />
@@ -254,10 +254,10 @@ const filteredClients = clients.filter(client =>
                 )}
               </div>
 
-              <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
+              <div className="flex flex-col gap-2 mt-3 pt-3 border-t border-gray-100">
                 <div className="flex items-center gap-4 text-sm">
                   
-                <div className="flex flex-wrap gap-3 text-sm mt-2">
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm mt-2">
 
               <span className="text-gray-600 flex items-center gap-1">
                 🧾 {client.invoice_count} facturas
