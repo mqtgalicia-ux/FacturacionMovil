@@ -4,9 +4,15 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { Empresa, Impuesto } from '../types';
 
-export function CompanyScreen() {
+interface CompanyScreenProps {
+  empresa: Empresa | null;
+  setEmpresa: (empresa: Empresa | null) => void;
+}
+
+
+
+export function CompanyScreen({ empresa, setEmpresa }: CompanyScreenProps) {
   const { user } = useAuth();
-  const [empresa, setEmpresa] = useState<Empresa | null>(null);
   const [impuestos, setImpuestos] = useState<Impuesto[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);

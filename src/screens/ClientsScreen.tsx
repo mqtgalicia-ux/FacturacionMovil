@@ -1,20 +1,25 @@
 import { useState, useEffect } from 'react';
-import { Users, Plus, CreditCard as Edit2, ChevronRight, FileText } from 'lucide-react';
+import { Users, Plus, CreditCard as Edit2, ChevronRight, FileText, Eye, X, MoreVertical, CheckCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { Cliente, Empresa, Factura } from '../types';
+import { Cliente, Empresa } from '../types';
 import { ClientForm } from '../components/ClientForm';
+import { generateInvoicePDF } from '../utils/pdfGenerator';
 
 interface ClientWithStats extends Cliente {
   invoice_count: number;
-  total_sales: number;
+  total_facturado: number;
+  total_pagado: number;
+  total_pendiente: number;
+  total_borrador: number;
 }
 
 interface ClientsScreenProps {
   onNewInvoice?: (clientId: string) => void;
+  onEditInvoice?: (invoiceId: string) => void;
 }
 
-export function ClientsScreen({ onNewInvoice }: ClientsScreenProps) {
+export function ClientsScreen({ onNewInvoice, onEditInvoice }: ClientsScreenProps) {
   const { user } = useAuth();
   const [empresa, setEmpresa] = useState<Empresa | null>(null);
   const [clients, setClients] = useState<ClientWithStats[]>([]);
@@ -22,9 +27,57 @@ export function ClientsScreen({ onNewInvoice }: ClientsScreenProps) {
   const [error, setError] = useState('');
   const [editingClient, setEditingClient] = useState<Cliente | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [facturas, setFacturas] = useState<any[]>([]); // Lista de facturas del cliente seleccionado
+  const [loadingFacturas, setLoadingFacturas] = useState(false); // Para mostrar cargando
+  const [clienteSeleccionado, setClienteSeleccionado] = useState<Cliente | null>(null); // Cliente cuyo listado de facturas mostrar
+  const [search, setSearch] = useState('');
+  
+  const [menuFactura, setMenuFactura] = useState<string | null>(null);
+
+  const loadFacturas = async (clienteId: string) => {
+    setLoadingFacturas(true);
+    try {
+    const { data, error } = await supabase
+      .from('facturas')
+      .select('*')
+      .eq('cliente_id', clienteId)
+      .order('fecha', { ascending: false });
+
+    if (error) throw error;
+    setFacturas(data || []);
+    } catch (err) {
+    console.error('Error al cargar facturas:', err);
+    setFacturas([]);
+    } finally {
+    setLoadingFacturas(false);
+    }
+  };
+
+
+const marcarPagada = async (facturaId: string) => {
+  try {
+    const { error } = await supabase
+      .from('facturas')
+      .update({ estado: 'Pagada' })
+      .eq('id', facturaId);
+
+    if (error) throw error;
+
+    // refrescar lista
+    if (clienteSeleccionado) {
+      loadFacturas(clienteSeleccionado.id);
+    }
+
+  } catch (err) {
+    console.error('Error actualizando factura', err);
+  }
+};
+
+
 
   useEffect(() => {
     loadData();
+
   }, [user]);
 
   const loadData = async () => {
@@ -47,32 +100,14 @@ export function ClientsScreen({ onNewInvoice }: ClientsScreenProps) {
       setEmpresa(empresaData);
 
       const { data: clientsData, error: clientsError } = await supabase
-        .from('clientes')
-        .select('*')
-        .eq('empresa_id', empresaData.id)
-        .order('nombre', { ascending: true });
+      .from('clientes_con_stats')
+      .select('*')
+      .eq('empresa_id', empresaData.id)
+      .order('nombre', { ascending: true });
 
       if (clientsError) throw clientsError;
 
-      const { data: facturasData, error: facturasError } = await supabase
-        .from('facturas')
-        .select('cliente_id, total')
-        .eq('empresa_id', empresaData.id);
-
-      if (facturasError) throw facturasError;
-
-      const clientsWithStats = (clientsData || []).map((client) => {
-        const clientInvoices = (facturasData || []).filter(
-          (f: Factura) => f.cliente_id === client.id
-        );
-        return {
-          ...client,
-          invoice_count: clientInvoices.length,
-          total_sales: clientInvoices.reduce((sum: number, inv: Factura) => sum + inv.total, 0),
-        };
-      });
-
-      setClients(clientsWithStats);
+      setClients((clientsData || []) as ClientWithStats[]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cargar clientes');
     } finally {
@@ -128,6 +163,11 @@ export function ClientsScreen({ onNewInvoice }: ClientsScreenProps) {
     );
   }
 
+const filteredClients = clients.filter(client =>
+  client.nombre.toLowerCase().includes(search.toLowerCase())
+);
+
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -137,13 +177,33 @@ export function ClientsScreen({ onNewInvoice }: ClientsScreenProps) {
           </div>
           <h2 className="text-2xl font-bold text-gray-900">Clientes</h2>
         </div>
+
+<div className="relative">
+  <input
+    type="text"
+    placeholder="Buscar cliente..."
+    value={search}
+    onChange={(e) => setSearch(e.target.value)}
+    className="border border-gray-300 rounded-lg py-2 pl-3 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+  />
+  {search && (
+    <button
+      onClick={() => setSearch('')}
+      className="absolute right-1 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+    >
+      ✖
+    </button>
+  )}
+</div>
+
+
         <button
-          onClick={handleNew}
-          className="flex items-center gap-2 bg-blue-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="w-5 h-5" />
-          Nuevo Cliente
-        </button>
+  onClick={handleNew}
+  className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-full transition-colors flex items-center justify-center"
+  title="Agregar Cliente"
+>
+  <Plus className="w-5 h-5" />
+</button>
       </div>
 
       {error && (
@@ -167,7 +227,7 @@ export function ClientsScreen({ onNewInvoice }: ClientsScreenProps) {
         </div>
       ) : (
         <div className="space-y-3">
-          {clients.map((client) => (
+          {filteredClients.map((client) => (
             <div
               key={client.id}
               className="bg-white rounded-lg shadow-sm p-4 hover:shadow-md transition-shadow"
@@ -180,6 +240,9 @@ export function ClientsScreen({ onNewInvoice }: ClientsScreenProps) {
                     <span>{client.telefono || 'Sin teléfono'}</span>
                   </div>
                 </div>
+
+
+
                 {onNewInvoice && (
                   <button
                     onClick={() => onNewInvoice(client.id)}
@@ -193,12 +256,55 @@ export function ClientsScreen({ onNewInvoice }: ClientsScreenProps) {
 
               <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
                 <div className="flex items-center gap-4 text-sm">
-                  <span className="text-gray-600">
-                    {client.invoice_count} {client.invoice_count === 1 ? 'factura' : 'facturas'}
-                  </span>
-                  <span className="font-semibold text-gray-900">
-                    Total: {client.total_sales.toFixed(2)}€
-                  </span>
+                  
+                <div className="flex flex-wrap gap-3 text-sm mt-2">
+
+              <span className="text-gray-600 flex items-center gap-1">
+                🧾 {client.invoice_count} facturas
+              </span>
+
+              <span className="text-blue-600 font-semibold flex items-center gap-1">
+                💰 {client.total_facturado.toFixed(2)}€
+              </span>
+
+              <span className="text-green-600 font-semibold flex items-center gap-1">
+                ✅ {client.total_pagado.toFixed(2)}€
+              </span>
+
+              <span className="text-orange-600 font-semibold flex items-center gap-1">
+                ⏳ {client.total_borrador.toFixed(2)}€
+              </span>
+
+<button
+  onClick={() => {
+    if (clienteSeleccionado?.id === client.id) {
+      setClienteSeleccionado(null);
+    } else {
+      setClienteSeleccionado(client);
+      loadFacturas(client.id);
+    }
+  }}
+  className="flex items-center gap-1 bg-gray-100 text-gray-700 py-1 px-3 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors"
+>
+  {clienteSeleccionado?.id === client.id ? (
+    <>
+      <X className="w-4 h-4 text-red-500" />
+      Ocultar
+    </>
+  ) : (
+    <>
+      <Eye className="w-4 h-4 text-gray-700" />
+      Ver facturas
+    </>
+  )}
+</button>
+
+
+
+
+
+              
+              </div>
                 </div>
                 <button
                   onClick={() => handleEdit(client)}
@@ -209,6 +315,119 @@ export function ClientsScreen({ onNewInvoice }: ClientsScreenProps) {
                   <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
+
+{clienteSeleccionado?.id === client.id && (
+  <div className="bg-gray-50 p-3 mt-3 rounded-lg border border-gray-200">
+    <h4 className="font-semibold mb-2">Facturas de {clienteSeleccionado.nombre}</h4>
+
+    {loadingFacturas ? (
+      <div>Cargando facturas...</div>
+    ) : facturas.length === 0 ? (
+      <div>No hay facturas</div>
+    ) : (
+      <table className="w-full text-sm border border-gray-200">
+        <thead>
+          <tr className="bg-gray-100">
+            <th className="p-2 text-left">Número</th>
+            <th className="p-2 text-left">Fecha</th>
+            <th className="p-2 text-left">Estado</th>
+            <th className="p-2 text-right">Total</th>
+            <th className="p-2 text-right"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {facturas.map((f) => (
+            <tr key={f.id} className="border-t border-gray-200">
+              <td className="p-2">{f.numero}</td>
+              <td className="p-2">{new Date(f.fecha).toLocaleDateString()}</td>
+              <td className="p-2">
+                  {f.estado === 'Pagada' && (
+                    <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-700 rounded-md">
+                    🟢 Pagada
+                    </span>
+                  )}
+
+                  {f.estado === 'Enviada' && (
+                    <span className="px-2 py-1 text-xs font-medium bg-red-100 text-red-700 rounded-md">
+                    🔴 Pendiente
+                    </span>
+                  )}
+
+                  {f.estado === 'Borrador' && (
+                      <span className="px-2 py-1 text-xs font-medium bg-orange-100 text-orange-700 rounded-md">
+                    🟠 Borrador
+                    </span>
+                  )}
+                </td>
+              <td className="p-2 text-right">{f.total.toFixed(2)}€</td>
+
+<td className="p-2 text-right relative">
+
+<button
+  onClick={() =>
+    setMenuFactura(menuFactura === f.id ? null : f.id)
+  }
+  className="p-1 rounded hover:bg-gray-100"
+>
+  <MoreVertical className="w-4 h-4 text-gray-600" />
+</button>
+
+{menuFactura === f.id && (
+  <div className="absolute right-0 mt-1 w-44 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+
+   <button
+  onClick={async () => {
+    if (!empresa || !clienteSeleccionado) return;
+
+    try {
+      const { data: items, error } = await supabase
+        .from("items_factura")
+        .select(`*, impuestos (*)`)
+        .eq("factura_id", f.id);
+
+      if (error) throw error;
+
+      const pdfBlob = await generateInvoicePDF(
+        empresa,
+        f,
+        clienteSeleccionado,
+        items || []
+      );
+
+      const url = URL.createObjectURL(pdfBlob);
+      window.open(url);
+    } catch (err) {
+      console.error("Error generando PDF:", err);
+    }
+  }}
+  className="flex items-center gap-2 w-full px-4 py-2 text-sm font-medium text-blue-700 bg-blue-100 rounded-lg hover:bg-blue-200 transition-all shadow-sm"
+>
+  <FileText className="w-5 h-5"/>
+  Ver PDF
+</button>
+
+<button
+  onClick={() => marcarPagada(f.id)}
+  className="flex items-center gap-2 w-full px-4 py-2 text-sm font-medium text-green-700 bg-green-100 rounded-lg hover:bg-green-200 transition-all shadow-sm"
+>
+  <CheckCircle className="w-5 h-5"/>
+  Marcar como pagada
+</button>
+  </div>
+)}
+
+</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    )}
+  </div>
+)}
+
+
+
+
             </div>
           ))}
         </div>
