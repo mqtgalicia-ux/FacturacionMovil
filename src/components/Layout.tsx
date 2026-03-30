@@ -27,7 +27,7 @@ console.error("Error signing out:", error);
 }
 };
 
-return ( <div className="min-h-screen bg-gray-50 flex flex-col">
+return ( <div className="min-h-screen bg-gray-50 flex flex-col overflow-x-hidden">
 
 ```
   {/* HEADER */}
@@ -88,7 +88,7 @@ return ( <div className="min-h-screen bg-gray-50 flex flex-col">
 
   {/* CONTENT */}
 
-  <main className="flex-1 max-w-7xl mx-auto p-4 pb-24">
+  <main className="flex-1 max-w-7xl w-full mx-auto p-4 pb-24 overflow-x-hidden">
     {children}
   </main>
 
